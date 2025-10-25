@@ -33,8 +33,8 @@ Julia example snippet:
 
 3. **LaTeX setup**
 
-    In your LaTeX preamble, you will need to add `\usepackage{listings}`.
-    The `listings` package provides captions, labels and referencing as well as other formatting (line numbers, frame, ...). 
+    In your LaTeX preamble, you will need to add `\usepackage{listings}` and `\usepackage{xcolor}`.
+    The `listings` package provides captions, labels and referencing as well as other formatting (line numbers, frame, ...), the `xcolor` packge allows using html color codes.
 
 ### First run:
 
