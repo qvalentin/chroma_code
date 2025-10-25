@@ -237,18 +237,11 @@ fn main() {
                 );
             }
 
-            let mut html_bytes: Vec<u8> = out.stdout;
-
-            if conf.skip_first_line {
-                let split_at = html_bytes
-                    .iter()
-                    .position(|&b| b == b'\n')
-                    .map(|pos| pos + 1)
-                    .unwrap_or(html_bytes.len());
-                html_bytes.drain(0..split_at);
+            let html_bytes: Vec<u8> = out.stdout;
+            let mut highlighted_text_pieces = extract_highlighted_pieces(html_bytes, &conf);
+            if conf.skip_first_line && highlighted_text_pieces.len() > 0 {
+                highlighted_text_pieces.remove(0);
             }
-
-            let highlighted_text_pieces = extract_highlighted_pieces(html_bytes, &conf);
             let generated_latex = generate_latex_verbatim(highlighted_text_pieces, &conf);
             if conf.dump {
                 println!("{}", generated_latex);
