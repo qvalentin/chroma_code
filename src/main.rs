@@ -11,7 +11,7 @@ mod validator;
 
 // my local imports
 use formatter::generate_latex_verbatim;
-use parser::extract_highlighted_pieces;
+use parser::{extract_highlighted_pieces, parse_header};
 use validator::{is_input_ok, is_output_ok};
 
 // external imports
@@ -82,6 +82,18 @@ pub struct CliArgs {
     /// Skip the output file argument and use the input file with the extension swapped to .tex
     #[arg(long)]
     pub swap_ext: bool,
+
+    /// comma separated list of comment types to check for header info
+    #[arg(long, default_value_t = String::from("#,//"))]
+    pub header_comment_types: String,
+
+    /// default color for the text
+    #[arg(long, default_value_t = String::from("000000"))]
+        pub default_color: String,
+
+    /// if true, the first line of the input file will be skipped
+    #[arg(skip)]
+    pub skip_first_line: bool,
 }
 
 #[derive(Debug)]
@@ -143,7 +155,6 @@ fn main() {
         }
     }
 
-    let command = "tree-sitter";
     let Some(input_file) = &conf.input.clone() else {
         println!("Can't continue without input file. You probably used \"--trust\" without any input file.");
         std::process::exit(exitcode::USAGE);
@@ -153,8 +164,21 @@ fn main() {
         std::process::exit(exitcode::USAGE);
     };
 
-    let args = ["highlight", "-H", input_file];
+    let content = std::fs::read_to_string(input_file).unwrap_or_else(|err| {
+        println!("Sorry, there was an error while reading the input file: {}", err);
+        std::process::exit(exitcode::NOINPUT);
+    });
 
+    if let Some(header_info) = parse_header(&content, &conf.header_comment_types.split(",").collect::<Vec<&str>>()) {
+        println!("Using info from header: {:?}", header_info);
+
+        conf.caption = header_info.caption.unwrap_or(conf.caption);
+        conf.label = header_info.label.unwrap_or(conf.label);
+        conf.skip_first_line = true;
+    }
+
+    let command = "tree-sitter";
+    let args = ["highlight", "-H", input_file];
     let cmd_output = std::process::Command::new(command).args(args).output();
     if conf.verbose {
         println!("executing command \"{} {}\"", command, args.join(" "))
@@ -200,7 +224,19 @@ fn main() {
                     out.stdout.len()
                 );
             }
-            let highlighted_text_pieces = extract_highlighted_pieces(out.stdout, &conf);
+
+            let mut html_bytes: Vec<u8> = out.stdout;
+
+            if conf.skip_first_line {
+                let split_at = html_bytes
+                    .iter()
+                    .position(|&b| b == b'\n')
+                    .map(|pos| pos + 1)
+                    .unwrap_or(html_bytes.len());
+                html_bytes.drain(0..split_at);
+            }
+
+            let highlighted_text_pieces = extract_highlighted_pieces(html_bytes, &conf);
             let generated_latex = generate_latex_verbatim(highlighted_text_pieces, &conf);
             if conf.dump {
                 println!("{}", generated_latex);

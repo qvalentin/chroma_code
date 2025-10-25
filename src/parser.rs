@@ -1,66 +1,80 @@
-use crate::{CliArgs, HighlightedText};
 use regex::Regex;
 use scraper::{Html, Selector};
 
-pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<HighlightedText> {
-    let mut colored_text_pieces: Vec<HighlightedText> = vec![];
-    let Ok(out_str) = String::from_utf8(stdout) else {
-        println!("Sorry, couldn't create string from captured stdout.\n Raw (bytes) stdout:\n");
-        std::process::exit(exitcode::DATAERR);
-    };
-    if conf.verbose {
-        println!("Successfully converted received bytes into string.");
-    }
-    let document = Html::parse_document(&out_str);
-    // following line is hard-coded tested selector, so unwrap() should never panic here
-    let line_class_selector = Selector::parse("td.line").unwrap();
-    let lines = document.select(&line_class_selector);
-    // following line is hard-coded tested regex for hex-color used in the html, so unwrap() should never panic here
-    let hex_color_regex = Regex::new(r"#[0-9a-fA-F]{6}").unwrap();
-    for line in lines {
-        for child in line.descendants() {
-            let node = child.value();
-            if node.is_text() {
-                let node_text = &node.as_text().unwrap().text;
-                let Some(parent) = child.parent() else {
-                    continue;
-                };
-                let Some(parent_element) = parent.value().as_element() else {
-                    // text node should always have parent element that defines the style, 
-                    // but just in case, there will be default black style here
-                    let text_piece = HighlightedText {
-                        text: node_text.to_string(),
-                        hex_color: String::from("000000"),
-                        bold: false,
-                        underline: false,
-                        italic: false,
-                    };
-                    colored_text_pieces.push(text_piece);
-                    continue;
-                };
-                // if there is no style in the parent node, use black color as default
-                let style_text = parent_element.attr("style").unwrap_or("color: #000000");
-                let capture = hex_color_regex.find(style_text);
-                let parsed_color = match capture {
-                    None => String::from("000000"), // again, use black if no match is found
-                    Some(capture) => capture.as_str().replace('#', "").to_uppercase(),
-                };
-                let text_piece = HighlightedText {
-                    text: node_text.to_string(),
-                    hex_color: parsed_color,
-                    bold: style_text.contains("bold"),
-                    underline: style_text.contains("underline"),
-                    italic: style_text.contains("italic"),
-                };
-                colored_text_pieces.push(text_piece);
+use crate::{HighlightedText, CliArgs};
+
+#[derive(Debug)]
+pub struct HeaderInfo {
+    pub caption: Option<String>,
+    pub label: Option<String>,
+}
+
+pub fn parse_header(
+    content: &str,
+    comment_types: &[&str],
+) -> Option<HeaderInfo> {
+    if let Some(first_line) = content.lines().next() {
+        for comment_type in comment_types {
+            if first_line.starts_with(comment_type) {
+                let trimmed_line = first_line[comment_type.len()..].trim();
+                if let Some(captures) = Regex::new(
+                    r"chroma_code:\s*(?:caption:\s*(?P<caption>.*?))?\s*(?:label:\s*(?P<label>.*?))?$",
+                )
+                .unwrap()
+                .captures(trimmed_line)
+                {
+                    let caption = captures.name("caption").map(|m| m.as_str().trim().to_string());
+                    let label = captures.name("label").map(|m| m.as_str().trim().to_string());
+
+                    // If either caption or label is found, we consider it a match
+                    if caption.is_some() || label.is_some() {
+                        let header_info = HeaderInfo { caption, label };
+                            return Some(header_info)
+                    }
+                }
             }
         }
     }
+    None
+}
+
+/// Parses the html string and returns a vector of `HighlightedText`
+fn parse(html_string: &str, conf: &CliArgs) -> Vec<HighlightedText> {
+    let document = Html::parse_document(html_string);
+    let selector = Selector::parse("pre > code > span").unwrap();
+    let mut highlighted_text_pieces: Vec<HighlightedText> = vec![];
+    for element in document.select(&selector) {
+        let style = element.value().attr("style").unwrap_or("");
+        let hex_color = Regex::new(r"color:\s*#([0-9a-fA-F]{6});")
+            .unwrap()
+            .captures(style)
+            .and_then(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+            .unwrap_or_else(|| conf.default_color.clone());
+
+        let bold = style.contains("font-weight: bold");
+        let italic = style.contains("font-style: italic");
+        let underline = style.contains("text-decoration: underline");
+
+        let text = element.text().collect::<String>();
+
+        highlighted_text_pieces.push(HighlightedText {
+            text,
+            hex_color,
+            bold,
+            italic,
+            underline,
+        });
+    }
     if conf.verbose {
         println!(
-            "Successfully parsed the TreeSitter's html into {} nodes.",
-            colored_text_pieces.len()
+            "Successfully parsed the html string, found {} highlighted text pieces.",
+            highlighted_text_pieces.len()
         );
     }
-    return colored_text_pieces;
+    highlighted_text_pieces
+}
+
+pub fn extract_highlighted_pieces(html_bytes: Vec<u8>, conf: &CliArgs) -> Vec<HighlightedText> {
+    let html_string = String::from_utf8(html_bytes).unwrap();
+    parse(&html_string, conf)
 }
