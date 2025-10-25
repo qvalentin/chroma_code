@@ -71,11 +71,13 @@ pub struct CliArgs {
     #[arg(short, long)]
     pub german: bool,
 
-    /// use the provided string as a label for the listing
+    /// Use the provided string as a caption for the listing.
+    /// Can be overridden by a header in the input file (see `header-comment-types`).
     #[arg(short, long, default_value_t = String::from(formatter::DEFAULT_CAPTION))]
     pub caption: String,
 
-    /// use the provided string as a label for the listing
+    /// Use the provided string as a label for the listing.
+    /// Can be overridden by a header in the input file (see `header-comment-types`).
     #[arg(short, long, default_value_t = String::from(formatter::DEFAULT_LABEL))]
     pub label: String,
 
@@ -83,7 +85,9 @@ pub struct CliArgs {
     #[arg(long)]
     pub swap_ext: bool,
 
-    /// comma separated list of comment types to check for header info
+    /// Comma-separated list of comment prefixes to check for a header on the first line of the input file.
+    /// A header can set the caption and/or label.
+    /// Example: `# chroma_code: caption: My Caption label: my-label`
     #[arg(long, default_value_t = String::from("#,//"))]
     pub header_comment_types: String,
 
@@ -152,6 +156,14 @@ fn main() {
             let input_path = Path::new(input_path_str);
             let output_path = input_path.with_extension("tex");
             conf.output = Some(output_path.to_str().unwrap().to_string());
+            if output_path.exists() {
+                if !conf.force {
+                    println!("Output file already exists, use --force to overwrite it.");
+                    std::process::exit(exitcode::UNAVAILABLE);
+                } else {
+                    println!("Output file already exists, overwriting it.");
+                }
+            } 
         }
     }
 

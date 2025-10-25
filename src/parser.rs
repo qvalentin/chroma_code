@@ -9,6 +9,9 @@ pub struct HeaderInfo {
     pub label: Option<String>,
 }
 
+/// Parses the first line of the input file for a header comment, which can be used to set the
+/// caption and label for the listing. The format is `comment_char chroma_code: caption: Your Caption label: your-label`.
+/// Both caption and label are optional. The comment characters are passed via `comment_types`.
 pub fn parse_header(
     content: &str,
     comment_types: &[&str],
