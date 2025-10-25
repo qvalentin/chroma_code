@@ -78,6 +78,10 @@ pub struct CliArgs {
     /// use the provided string as a label for the listing
     #[arg(short, long, default_value_t = String::from(formatter::DEFAULT_LABEL))]
     pub label: String,
+
+    /// Skip the output file argument and use the input file with the extension swapped to .tex
+    #[arg(long)]
+    pub swap_ext: bool,
 }
 
 #[derive(Debug)]
@@ -124,8 +128,18 @@ fn main() {
         while !is_input_ok(&mut conf, cwd) {
             continue;
         }
-        while !is_output_ok(&mut conf, cwd) {
-            continue;
+        if !conf.swap_ext {
+            while !is_output_ok(&mut conf, cwd) {
+                continue;
+            }
+        }
+    }
+
+    if conf.swap_ext && conf.output.is_none() {
+        if let Some(input_path_str) = &conf.input {
+            let input_path = Path::new(input_path_str);
+            let output_path = input_path.with_extension("tex");
+            conf.output = Some(output_path.to_str().unwrap().to_string());
         }
     }
 
@@ -135,9 +149,10 @@ fn main() {
         std::process::exit(exitcode::USAGE);
     };
     let Some(output_file) = &conf.output else {
-        println!("Can't continue without output file. You probably used \"--trust\" without any output file.");
+        println!("Can't continue without output file. You probably used \"--trust\" without any output file, or you used \"--swap-ext\" without providing an input file.");
         std::process::exit(exitcode::USAGE);
     };
+
     let args = ["highlight", "-H", input_file];
 
     let cmd_output = std::process::Command::new(command).args(args).output();
