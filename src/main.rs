@@ -93,7 +93,7 @@ pub struct CliArgs {
 
     /// default color for the text
     #[arg(long, default_value_t = String::from("000000"))]
-        pub default_color: String,
+    pub default_color: String,
 
     /// if true, the first line of the input file will be skipped
     #[arg(skip)]
@@ -163,25 +163,31 @@ fn main() {
                 } else {
                     println!("Output file already exists, overwriting it.");
                 }
-            } 
+            }
         }
     }
 
     let Some(input_file) = &conf.input.clone() else {
         println!("Can't continue without input file. You probably used \"--trust\" without any input file.");
-        std::process::exit(exitcode::USAGE);
+        std::process::exit(exitcode::USAGE)
     };
     let Some(output_file) = &conf.output else {
         println!("Can't continue without output file. You probably used \"--trust\" without any output file, or you used \"--swap-ext\" without providing an input file.");
-        std::process::exit(exitcode::USAGE);
+        std::process::exit(exitcode::USAGE)
     };
 
     let content = std::fs::read_to_string(input_file).unwrap_or_else(|err| {
-        println!("Sorry, there was an error while reading the input file: {}", err);
+        println!(
+            "Sorry, there was an error while reading the input file: {}",
+            err
+        );
         std::process::exit(exitcode::NOINPUT);
     });
 
-    if let Some(header_info) = parse_header(&content, &conf.header_comment_types.split(",").collect::<Vec<&str>>()) {
+    if let Some(header_info) = parse_header(
+        &content,
+        &conf.header_comment_types.split(",").collect::<Vec<&str>>(),
+    ) {
         println!("Using info from header: {:?}", header_info);
 
         conf.caption = header_info.caption.unwrap_or(conf.caption);

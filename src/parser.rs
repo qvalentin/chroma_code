@@ -11,10 +11,7 @@ pub struct HeaderInfo {
 /// Parses the first line of the input file for a header comment, which can be used to set the
 /// caption and label for the listing. The format is `comment_char chroma_code: caption: Your Caption label: your-label`.
 /// Both caption and label are optional. The comment characters are passed via `comment_types`.
-pub fn parse_header(
-    content: &str,
-    comment_types: &[&str],
-) -> Option<HeaderInfo> {
+pub fn parse_header(content: &str, comment_types: &[&str]) -> Option<HeaderInfo> {
     if let Some(first_line) = content.lines().next() {
         for comment_type in comment_types {
             if first_line.starts_with(comment_type) {
@@ -44,7 +41,7 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
     let mut colored_text_pieces: Vec<HighlightedText> = vec![];
     let Ok(out_str) = String::from_utf8(stdout) else {
         println!("Sorry, couldn't create string from captured stdout.\n Raw (bytes) stdout:\n");
-        std::process::exit(exitcode::DATAERR);
+        std::process::exit(exitcode::DATAERR)
     };
     if conf.verbose {
         println!("Successfully converted received bytes into string.");
@@ -54,15 +51,13 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
     let line_class_selector = Selector::parse("td.line").unwrap();
     let lines = document.select(&line_class_selector);
 
-    let lines_iter = lines.enumerate()
-        .filter_map(|(i, line)| {
-            if conf.skip_first_line && i == 0 {
-                None
-            } else {
-                Some(line)
-            }
-        });
-
+    let lines_iter = lines.enumerate().filter_map(|(i, line)| {
+        if conf.skip_first_line && i == 0 {
+            None
+        } else {
+            Some(line)
+        }
+    });
 
     // following line is hard-coded tested regex for hex-color used in the html, so unwrap() should never panic here
     let hex_color_regex = Regex::new(r"#[0-9a-fA-F]{6}").unwrap();
@@ -75,7 +70,7 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
                     continue;
                 };
                 let Some(parent_element) = parent.value().as_element() else {
-                    // text node should always have parent element that defines the style, 
+                    // text node should always have parent element that defines the style,
                     // but just in case, there will be default black style here
                     let text_piece = HighlightedText {
                         text: node_text.to_string(),
@@ -91,7 +86,7 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
                 let style_text = parent_element.attr("style").unwrap_or("color: #000000");
                 let capture = hex_color_regex.find(style_text);
                 let parsed_color = match capture {
-                    None => String::from("000000"), // again, use black if no match is found
+                    none => String::from("000000"), // again, use black if no match is found
                     Some(capture) => capture.as_str().replace('#', "").to_uppercase(),
                 };
                 let text_piece = HighlightedText {
