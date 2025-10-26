@@ -238,10 +238,7 @@ fn main() {
             }
 
             let html_bytes: Vec<u8> = out.stdout;
-            let mut highlighted_text_pieces = extract_highlighted_pieces(html_bytes, &conf);
-            if conf.skip_first_line && highlighted_text_pieces.len() > 0 {
-                highlighted_text_pieces.remove(0);
-            }
+            let highlighted_text_pieces = extract_highlighted_pieces(html_bytes, &conf);
             let generated_latex = generate_latex_verbatim(highlighted_text_pieces, &conf);
             if conf.dump {
                 println!("{}", generated_latex);

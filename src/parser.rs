@@ -53,9 +53,20 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
     // following line is hard-coded tested selector, so unwrap() should never panic here
     let line_class_selector = Selector::parse("td.line").unwrap();
     let lines = document.select(&line_class_selector);
+
+    let lines_iter = lines.enumerate()
+        .filter_map(|(i, line)| {
+            if conf.skip_first_line && i == 0 {
+                None
+            } else {
+                Some(line)
+            }
+        });
+
+
     // following line is hard-coded tested regex for hex-color used in the html, so unwrap() should never panic here
     let hex_color_regex = Regex::new(r"#[0-9a-fA-F]{6}").unwrap();
-    for line in lines {
+    for line in lines_iter {
         for child in line.descendants() {
             let node = child.value();
             if node.is_text() {
