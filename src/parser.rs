@@ -86,8 +86,8 @@ pub fn extract_highlighted_pieces(stdout: Vec<u8>, conf: &CliArgs) -> Vec<Highli
                 let style_text = parent_element.attr("style").unwrap_or("color: #000000");
                 let capture = hex_color_regex.find(style_text);
                 let parsed_color = match capture {
-                    none => String::from("000000"), // again, use black if no match is found
                     Some(capture) => capture.as_str().replace('#', "").to_uppercase(),
+                    None => String::from("000000"), // again, use black if no match is found
                 };
                 let text_piece = HighlightedText {
                     text: node_text.to_string(),
